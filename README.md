@@ -44,75 +44,96 @@ export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
 
 ## Option 1: Terraform (recommended)
 
+Create multiple repos in one go. Define shared defaults once, then override per-repo as needed.
+
 ### Quick start
 
 ```bash
-# 1. Copy the example tfvars
-cp terraform.tfvars.example terraform.tfvars
+# 1. Edit locals.tf — add your repos to the repositories map
+vim locals.tf
 
-# 2. Edit with your settings
-vim terraform.tfvars
-
-# 3. Init, plan, apply
+# 2. Init, plan, apply
 terraform init
 terraform plan
 terraform apply
 ```
 
-### Example `terraform.tfvars`
+### How it works
+
+Everything is defined in `locals.tf`:
+
+- **`local.defaults`** — shared settings applied to every repo (visibility, reviewers, branch rules, etc.)
+- **`local.repositories`** — map of repo names. Each repo only needs to specify fields it wants to override from defaults.
+
+No `terraform.tfvars` needed — just edit `locals.tf` directly.
+
+### Example: adding repos to `locals.tf`
 
 ```hcl
-repo_name        = "my-new-service"
-repo_description = "Microservice created via Terraform"
-visibility       = "private"
-default_branch   = "main"
+repositories = {
+  # Uses all defaults — just set description and gitignore
+  "my-api" = {
+    description        = "REST API service"
+    gitignore_template = "Python"
+    topics             = ["api", "python"]
+  }
 
-# Optional: set org for organisation repos
-# github_owner = "my-org"
+  # Override visibility and reviewers
+  "my-frontend" = {
+    description        = "React frontend"
+    visibility         = "public"
+    gitignore_template = "Node"
+    required_reviewers = 2
+    topics             = ["frontend", "react"]
+  }
 
-# Auto-init
-license_template   = "mit"
-gitignore_template = "Python"
+  # Add repo-specific secrets and variables
+  "my-infra" = {
+    description        = "Terraform infrastructure"
+    gitignore_template = "Terraform"
+    actions_secrets = {
+      AWS_ACCESS_KEY_ID     = "AKIA..."
+      AWS_SECRET_ACCESS_KEY = "wJalr..."
+    }
+    actions_variables = {
+      TF_VARS_PLAN_ROLE_ARN = "arn:aws:iam::123456789012:role/plan-role"
+    }
+  }
 
-# Topics
-topics = ["microservice", "python", "platform"]
-
-# Branch protection
-required_reviewers     = 1
-dismiss_stale_reviews  = true
-require_linear_history = true
-enforce_admins         = true
-required_status_checks = ["check-commits"]
-
-# Branch naming regex
-branch_name_pattern = "^(main|develop|feature/[a-z0-9._-]+|bugfix/[a-z0-9._-]+|hotfix/[a-z0-9._-]+|release/[0-9]+\\.[0-9]+\\.[0-9]+)$"
-
-# Feature toggles
-enable_conventional_commits  = true
-enable_branch_naming_ruleset = true
-
-# GitHub Actions secrets (stored encrypted by GitHub)
-actions_secrets = {
-  AWS_ACCESS_KEY_ID     = "AKIA..."
-  AWS_SECRET_ACCESS_KEY = "wJalr..."
-}
-
-# GitHub Actions variables (plaintext, visible in workflow logs)
-actions_variables = {
-  TF_VARS_PLAN_ROLE_ARN  = "arn:aws:iam::123456789012:role/plan-role"
-  TF_VARS_APPLY_ROLE_ARN = "arn:aws:iam::123456789012:role/apply-role"
-  AWS_REGION             = "eu-west-2"
+  # Disable features for a lightweight repo
+  "my-experiment" = {
+    description                  = "Quick experiment"
+    enable_conventional_commits  = false
+    enable_branch_naming_ruleset = false
+    enforce_admins               = false
+    required_status_checks       = []
+  }
 }
 ```
 
-### All Terraform variables
+### Override precedence
+
+Per-repo values always win over defaults. For `actions_secrets` and `actions_variables`, per-repo values are **merged** with defaults (repo values override matching keys).
+
+```
+final_value = lookup(repo, "field", defaults.field)
+final_secrets = merge(defaults.actions_secrets, repo.actions_secrets)
+```
+
+### Variables (in `variables.tf`)
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `github_token` | `string` | `""` (uses `GITHUB_TOKEN` env var) | GitHub Personal Access Token |
 | `github_owner` | `string` | `""` (personal account) | GitHub org name |
-| `repo_name` | `string` | (required) | Repository name |
-| `repo_description` | `string` | `""` | Repository description |
+
+### Defaults object fields
+
+All fields in `defaults` and per-repo overrides share the same schema:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `description` | `string` | `""` | Repository description (per-repo only) |
 | `visibility` | `string` | `"private"` | `"public"` or `"private"` |
 | `default_branch` | `string` | `"main"` | Default branch name |
 | `gitignore_template` | `string` | `""` | Gitignore template (e.g. `Python`, `Node`, `Go`) |
@@ -131,20 +152,21 @@ actions_variables = {
 
 ### Outputs
 
+All outputs are maps keyed by repo name:
+
 | Output | Description |
 |--------|-------------|
-| `repository_url` | Repository HTTPS URL |
-| `repository_ssh_url` | Repository SSH clone URL |
-| `repository_full_name` | Full name (`owner/repo`) |
-| `branch_protection` | Branch protection summary |
-| `branch_naming_pattern` | Active branch naming regex or `"disabled"` |
-| `actions_secrets` | List of secret names created |
-| `actions_variables` | Map of variable names and values |
+| `repositories` | `{ repo_name => { url, ssh_url, full_name } }` |
+| `branch_protection` | `{ repo_name => { branch, required_reviewers, ... } }` |
+| `branch_naming_patterns` | `{ repo_name => regex_or_"disabled" }` |
+| `actions_secrets` | `{ repo_name => [secret_names] }` (repos with secrets only) |
+| `actions_variables` | `{ repo_name => { name = value } }` (repos with variables only) |
 
 ### Importing existing repos
 
 ```bash
-terraform import github_repository.this my-existing-repo
+# Use the repo name as the map key
+terraform import 'github_repository.this["my-existing-repo"]' my-existing-repo
 ```
 
 ### Notes
@@ -152,6 +174,7 @@ terraform import github_repository.this my-existing-repo
 - **Status checks caveat**: The `check-commits` status check only becomes available after the conventional commits workflow has run at least once. On the very first apply, Terraform may warn about this. After the first PR triggers the workflow, re-apply to lock it in.
 - **Rulesets require GitHub Pro/Team/Enterprise** for private repos. Public repos can use rulesets on any plan.
 - **Secrets**: Values are sent as plaintext to Terraform but stored encrypted by GitHub. The Terraform state will contain the plaintext values, so protect your state file accordingly.
+- **Adding/removing repos**: Just add or remove entries in `locals.tf` and re-apply. Terraform handles the diff.
 
 ---
 
@@ -241,8 +264,10 @@ Hooks configured: trailing whitespace, ruff (lint + format), terraform fmt, gitl
 
 ```
 .
-├── main.tf                      # Terraform config (repo + protection + secrets + variables)
-├── terraform.tfvars.example     # Example variable values
+├── main.tf                      # Provider, resources (repos, protection, rulesets, secrets)
+├── locals.tf                    # Defaults + repositories map (edit this to add repos)
+├── variables.tf                 # Input variables (github_token, github_owner)
+├── outputs.tf                   # Output values (URLs, protection summary)
 ├── github_repo_creator.py       # Python script (alternative approach)
 ├── .releaserc.yml               # Semantic release configuration
 ├── .pre-commit-config.yaml      # Pre-commit hooks
