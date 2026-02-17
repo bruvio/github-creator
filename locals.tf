@@ -24,42 +24,12 @@ locals {
   # Repositories — add your repos here, only specify fields to override
   # ---------------------------------------------------------------------------
   repositories = {
-    # Example: uses all defaults, just set description and gitignore
-    # "my-api" = {
-    #   description        = "REST API service"
-    #   gitignore_template = "Python"
-    #   topics             = ["api", "python"]
-    # }
-    #
-    # Example: override visibility and reviewers
-    # "my-frontend" = {
-    #   description        = "React frontend"
-    #   visibility         = "public"
-    #   gitignore_template = "Node"
-    #   required_reviewers = 2
-    # }
-    #
-    # Example: repo with its own secrets and variables
-    # "my-infra" = {
-    #   description        = "Terraform infrastructure"
-    #   gitignore_template = "Terraform"
-    #   actions_secrets = {
-    #     AWS_ACCESS_KEY_ID     = "AKIA..."
-    #     AWS_SECRET_ACCESS_KEY = "wJalr..."
-    #   }
-    #   actions_variables = {
-    #     TF_VARS_PLAN_ROLE_ARN = "arn:aws:iam::123456789012:role/plan-role"
-    #   }
-    # }
-    #
-    # Example: disable features for a lightweight repo
-    # "my-experiment" = {
-    #   description                  = "Quick experiment"
-    #   enable_conventional_commits  = false
-    #   enable_branch_naming_ruleset = false
-    #   enforce_admins               = false
-    #   required_status_checks       = []
-    # }
+    "github-creator" = {
+      description    = "Automated GitHub repository creation with branch protection, conventional commits, and Actions secrets/variables"
+      visibility     = "public"
+      default_branch = "master"
+      topics         = ["github", "terraform", "automation", "devops"]
+    }
   }
 }
 
