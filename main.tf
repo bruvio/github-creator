@@ -1,5 +1,5 @@
 # =============================================================================
-# GitHub Repository with Branch Protection, Rulesets & Conventional Commits
+# GitHub Repository Creator — Multi-Repo with Defaults & Per-Repo Overrides
 #
 # Usage:
 #   export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
@@ -7,7 +7,7 @@
 #   terraform plan
 #   terraform apply
 #
-# For org repos, set: var.github_owner = "your-org"
+# For org repos, set: github_owner = "your-org"
 # =============================================================================
 
 terraform {
@@ -22,129 +22,6 @@ terraform {
 }
 
 # ---------------------------------------------------------------------------
-# Variables
-# ---------------------------------------------------------------------------
-variable "github_token" {
-  description = "GitHub Personal Access Token"
-  type        = string
-  sensitive   = true
-  default     = "" # Uses GITHUB_TOKEN env var if empty
-}
-
-variable "github_owner" {
-  description = "GitHub owner (user or org). Leave empty for personal repos."
-  type        = string
-  default     = ""
-}
-
-variable "repo_name" {
-  description = "Repository name"
-  type        = string
-}
-
-variable "repo_description" {
-  description = "Repository description"
-  type        = string
-  default     = ""
-}
-
-variable "visibility" {
-  description = "Repository visibility: public or private"
-  type        = string
-  default     = "private"
-
-  validation {
-    condition     = contains(["public", "private"], var.visibility)
-    error_message = "Visibility must be 'public' or 'private'."
-  }
-}
-
-variable "default_branch" {
-  description = "Default branch name"
-  type        = string
-  default     = "main"
-}
-
-variable "gitignore_template" {
-  description = "Gitignore template (e.g. Python, Node, Go). Empty to skip."
-  type        = string
-  default     = ""
-}
-
-variable "license_template" {
-  description = "License template (e.g. mit, apache-2.0, gpl-3.0). Empty to skip."
-  type        = string
-  default     = "mit"
-}
-
-variable "required_reviewers" {
-  description = "Number of required PR review approvals"
-  type        = number
-  default     = 1
-}
-
-variable "dismiss_stale_reviews" {
-  description = "Dismiss stale PR reviews when new commits are pushed"
-  type        = bool
-  default     = true
-}
-
-variable "require_linear_history" {
-  description = "Require linear commit history (no merge commits)"
-  type        = bool
-  default     = true
-}
-
-variable "enforce_admins" {
-  description = "Enforce branch protection for admins too"
-  type        = bool
-  default     = true
-}
-
-variable "required_status_checks" {
-  description = "List of required status check contexts"
-  type        = list(string)
-  default     = ["check-commits"]
-}
-
-variable "branch_name_pattern" {
-  description = "Regex pattern for allowed branch names (like GitLab push rules)"
-  type        = string
-  default     = "^(main|develop|feature/[a-z0-9._-]+|bugfix/[a-z0-9._-]+|hotfix/[a-z0-9._-]+|release/[0-9]+\\.[0-9]+\\.[0-9]+)$"
-}
-
-variable "enable_conventional_commits" {
-  description = "Add GitHub Actions workflow to enforce conventional commits"
-  type        = bool
-  default     = true
-}
-
-variable "enable_branch_naming_ruleset" {
-  description = "Enable branch naming convention via repository ruleset"
-  type        = bool
-  default     = true
-}
-
-variable "topics" {
-  description = "Repository topics/tags"
-  type        = list(string)
-  default     = []
-}
-
-variable "actions_secrets" {
-  description = "Map of GitHub Actions secrets to create. Values are plaintext and stored encrypted by GitHub."
-  type        = map(string)
-  default     = {}
-  sensitive   = true
-}
-
-variable "actions_variables" {
-  description = "Map of GitHub Actions variables to create."
-  type        = map(string)
-  default     = {}
-}
-
-# ---------------------------------------------------------------------------
 # Provider
 # ---------------------------------------------------------------------------
 provider "github" {
@@ -153,25 +30,26 @@ provider "github" {
 }
 
 # ---------------------------------------------------------------------------
-# Repository
+# Repositories
 # ---------------------------------------------------------------------------
 resource "github_repository" "this" {
-  name        = var.repo_name
-  description = var.repo_description
-  visibility  = var.visibility
-  topics      = var.topics
+  for_each = local.repos
+
+  name        = each.key
+  description = each.value.description
+  visibility  = each.value.visibility
+  topics      = each.value.topics
 
   auto_init          = true
-  gitignore_template = var.gitignore_template != "" ? var.gitignore_template : null
-  license_template   = var.license_template != "" ? var.license_template : null
+  gitignore_template = each.value.gitignore_template != "" ? each.value.gitignore_template : null
+  license_template   = each.value.license_template != "" ? each.value.license_template : null
 
   has_issues      = true
   has_discussions = false
   has_projects    = true
   has_wiki        = false
-  has_downloads   = false
 
-  allow_merge_commit = !var.require_linear_history
+  allow_merge_commit = !each.value.require_linear_history
   allow_squash_merge = true
   allow_rebase_merge = true
   allow_auto_merge   = true
@@ -192,40 +70,41 @@ resource "github_repository" "this" {
 # Branch Protection
 # ---------------------------------------------------------------------------
 resource "github_branch_protection" "default" {
-  repository_id = github_repository.this.node_id
-  pattern       = var.default_branch
+  for_each = local.repos
 
-  enforce_admins          = var.enforce_admins
+  repository_id = github_repository.this[each.key].node_id
+  pattern       = each.value.default_branch
+
+  enforce_admins          = each.value.enforce_admins
   require_signed_commits  = false
-  required_linear_history = var.require_linear_history
+  required_linear_history = each.value.require_linear_history
   allows_deletions        = false
   allows_force_pushes     = false
 
   required_pull_request_reviews {
-    required_approving_review_count = var.required_reviewers
-    dismiss_stale_reviews           = var.dismiss_stale_reviews
+    required_approving_review_count = each.value.required_reviewers
+    dismiss_stale_reviews           = each.value.dismiss_stale_reviews
     restrict_dismissals             = false
   }
 
   # Note: Status checks only work once the workflow has run at least once.
-  # You may need to apply this after the first PR triggers the workflow.
   dynamic "required_status_checks" {
-    for_each = length(var.required_status_checks) > 0 ? [1] : []
+    for_each = length(each.value.required_status_checks) > 0 ? [1] : []
     content {
       strict   = true
-      contexts = var.required_status_checks
+      contexts = each.value.required_status_checks
     }
   }
 }
 
 # ---------------------------------------------------------------------------
-# Repository Ruleset — Branch Naming Convention (like GitLab push rules)
+# Repository Rulesets — Branch Naming Convention
 # ---------------------------------------------------------------------------
 resource "github_repository_ruleset" "branch_naming" {
-  count = var.enable_branch_naming_ruleset ? 1 : 0
+  for_each = { for k, v in local.repos : k => v if v.enable_branch_naming_ruleset }
 
   name        = "branch-naming-convention"
-  repository  = github_repository.this.name
+  repository  = github_repository.this[each.key].name
   target      = "branch"
   enforcement = "active"
 
@@ -241,7 +120,7 @@ resource "github_repository_ruleset" "branch_naming" {
       name     = "branch naming convention"
       negate   = false
       operator = "regex"
-      pattern  = var.branch_name_pattern
+      pattern  = each.value.branch_name_pattern
     }
   }
 }
@@ -250,10 +129,10 @@ resource "github_repository_ruleset" "branch_naming" {
 # Conventional Commits — GitHub Actions Workflow
 # ---------------------------------------------------------------------------
 resource "github_repository_file" "conventional_commits_workflow" {
-  count = var.enable_conventional_commits ? 1 : 0
+  for_each = { for k, v in local.repos : k => v if v.enable_conventional_commits }
 
-  repository          = github_repository.this.name
-  branch              = var.default_branch
+  repository          = github_repository.this[each.key].name
+  branch              = each.value.default_branch
   file                = ".github/workflows/conventional-commits.yml"
   commit_message      = "ci: add conventional commits validation workflow"
   overwrite_on_create = true
@@ -305,64 +184,20 @@ resource "github_repository_file" "conventional_commits_workflow" {
 # Actions Secrets
 # ---------------------------------------------------------------------------
 resource "github_actions_secret" "this" {
-  for_each = var.actions_secrets
+  for_each = local.repo_secrets
 
-  repository      = github_repository.this.name
-  secret_name     = each.key
-  plaintext_value = each.value
+  repository      = github_repository.this[each.value.repo].name
+  secret_name     = each.value.key
+  plaintext_value = each.value.value
 }
 
 # ---------------------------------------------------------------------------
 # Actions Variables
 # ---------------------------------------------------------------------------
 resource "github_actions_variable" "this" {
-  for_each = var.actions_variables
+  for_each = local.repo_variables
 
-  repository    = github_repository.this.name
-  variable_name = each.key
-  value         = each.value
-}
-
-# ---------------------------------------------------------------------------
-# Outputs
-# ---------------------------------------------------------------------------
-output "repository_url" {
-  description = "Repository HTTPS URL"
-  value       = github_repository.this.html_url
-}
-
-output "repository_ssh_url" {
-  description = "Repository SSH URL"
-  value       = github_repository.this.ssh_clone_url
-}
-
-output "repository_full_name" {
-  description = "Full repository name (owner/repo)"
-  value       = github_repository.this.full_name
-}
-
-output "branch_protection" {
-  description = "Branch protection summary"
-  value = {
-    branch             = var.default_branch
-    required_reviewers = var.required_reviewers
-    linear_history     = var.require_linear_history
-    enforce_admins     = var.enforce_admins
-    status_checks      = var.required_status_checks
-  }
-}
-
-output "branch_naming_pattern" {
-  description = "Branch naming regex pattern"
-  value       = var.enable_branch_naming_ruleset ? var.branch_name_pattern : "disabled"
-}
-
-output "actions_secrets" {
-  description = "List of GitHub Actions secrets created"
-  value       = keys(var.actions_secrets)
-}
-
-output "actions_variables" {
-  description = "GitHub Actions variables created"
-  value       = { for k, v in var.actions_variables : k => v }
+  repository    = github_repository.this[each.value.repo].name
+  variable_name = each.value.key
+  value         = each.value.value
 }
