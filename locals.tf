@@ -25,10 +25,22 @@ locals {
   # ---------------------------------------------------------------------------
   repositories = {
     "github-creator" = {
-      description    = "Automated GitHub repository creation with branch protection, conventional commits, and Actions secrets/variables"
-      visibility     = "public"
-      default_branch = "master"
-      topics         = ["github", "terraform", "automation", "devops"]
+      description                  = "Automated GitHub repository creation with branch protection, conventional commits, and Actions secrets/variables"
+      visibility                   = "public"
+      default_branch               = "master"
+      topics                       = ["github", "terraform", "automation", "devops"]
+      required_status_checks       = []    # enable after first workflow run
+      enable_branch_naming_ruleset = false  # requires GitHub Enterprise Cloud (metadata ruleset)
+    }
+    "fitness-tracker" = {
+      description                  = "little tool for tracking running/swim/cycling data and creating workouts"
+      visibility                   = "public"
+      default_branch               = "master"
+      topics                       = ["github", "terraform", "automation", "devops", "sport"]
+      required_status_checks       = []    # enable after first workflow run
+      enable_branch_naming_ruleset = false  # requires GitHub Enterprise Cloud (metadata ruleset)
+      required_reviewers           = 0     # solo project — no approval needed
+      enforce_admins               = false # allow owner to merge without approval
     }
   }
 }

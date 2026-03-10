@@ -95,6 +95,12 @@ resource "github_branch_protection" "default" {
       contexts = each.value.required_status_checks
     }
   }
+
+  # Workflow file must be committed before branch protection blocks direct pushes.
+  # On first apply this ensures correct ordering. If branch protection already
+  # exists you may need to: terraform destroy -target=github_branch_protection.default
+  # then re-apply so the file is created first.
+  depends_on = [github_repository_file.conventional_commits_workflow]
 }
 
 # ---------------------------------------------------------------------------
@@ -117,7 +123,6 @@ resource "github_repository_ruleset" "branch_naming" {
 
   rules {
     branch_name_pattern {
-      name     = "branch naming convention"
       negate   = false
       operator = "regex"
       pattern  = each.value.branch_name_pattern
