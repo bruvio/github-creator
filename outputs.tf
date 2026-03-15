@@ -34,6 +34,6 @@ output "actions_secrets" {
 }
 
 output "actions_variables" {
-  description = "Variables created per repo"
-  value       = { for name, cfg in local.repos : name => cfg.actions_variables if length(cfg.actions_variables) > 0 }
+  description = "Variable names created per repo"
+  value       = { for name, cfg in local.repos : name => keys(cfg.actions_variables) if length(cfg.actions_variables) > 0 }
 }

@@ -28,7 +28,11 @@ locals {
   }
 
   shared_variables = {
-    "ENVIRONMENT" = "testing"
+    "ENVIRONMENT"            = "testing"
+    "AWS_REGION"             = "eu-west-2"
+    "TF_VARS_APPLY_ROLE_ARN" = var.tf_vars_apply_role_arn
+    "TF_VARS_PLAN_ROLE_ARN"  = var.tf_vars_plan_role_arn
+    "TF_WORKING_DIR"         = "terraform"
   }
 
   # ---------------------------------------------------------------------------

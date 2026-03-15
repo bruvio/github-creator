@@ -13,3 +13,15 @@ variable "github_owner" {
   type        = string
   default     = ""
 }
+
+variable "tf_vars_apply_role_arn" {
+  description = "IAM role ARN for Terraform apply in GitHub Actions"
+  type        = string
+  sensitive   = true
+}
+
+variable "tf_vars_plan_role_arn" {
+  description = "IAM role ARN for Terraform plan in GitHub Actions"
+  type        = string
+  sensitive   = true
+}
