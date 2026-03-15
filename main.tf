@@ -159,7 +159,7 @@ resource "github_repository_file" "conventional_commits_workflow" {
         types: [opened, synchronize, reopened, edited]
 
     permissions:
-      pull_requests: read
+      pull-requests: read
       statuses: write
 
     jobs:
