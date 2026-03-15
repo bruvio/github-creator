@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/bruvio/github-creator/compare/1.0.0...1.0.1) (2026-03-15)
+
+
+### Bug Fixes
+
+* conventional commit on feature branches ([ca67485](https://github.com/bruvio/github-creator/commit/ca67485dd545b11e162efb85d6c96e8db486a102))
+
 # 1.0.0 (2026-03-15)
 
 
