@@ -244,8 +244,32 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--gitignore", default="", help="Gitignore template (e.g. Python, Node)")
     p.add_argument("--default-branch", default="main", help="Default branch (default: main)")
     p.add_argument("--required-reviewers", type=int, default=1, help="Required PR reviewers (default: 1)")
-    p.add_argument("--enforce-admins", action="store_true", default=True, help="Enforce rules for admins too")
-    p.add_argument("--require-linear-history", action="store_true", default=True, help="Require linear history (no merge commits)")
+    p.add_argument(
+        "--enforce-admins",
+        dest="enforce_admins",
+        action="store_true",
+        default=True,
+        help="Enforce rules for admins too (default: enabled)",
+    )
+    p.add_argument(
+        "--no-enforce-admins",
+        dest="enforce_admins",
+        action="store_false",
+        help="Do not enforce rules for admins",
+    )
+    p.add_argument(
+        "--require-linear-history",
+        dest="require_linear_history",
+        action="store_true",
+        default=True,
+        help="Require linear history (no merge commits) (default: enabled)",
+    )
+    p.add_argument(
+        "--no-require-linear-history",
+        dest="require_linear_history",
+        action="store_false",
+        help="Do not require linear history (allow merge commits)",
+    )
     p.add_argument(
         "--branch-pattern",
         default=r"^(main|develop|feature\/[a-z0-9._-]+|bugfix\/[a-z0-9._-]+|hotfix\/[a-z0-9._-]+|release\/[0-9]+\.[0-9]+\.[0-9]+)$",
