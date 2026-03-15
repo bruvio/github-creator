@@ -238,12 +238,26 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--name", required=True, help="Repository name")
     p.add_argument("--org", default=None, help="GitHub org (omit for personal repo)")
     p.add_argument("--description", default="", help="Repo description")
-    p.add_argument("--private", action="store_true", default=True, help="Private repo (default: True)")
+    p.add_argument(
+        "--private",
+        action="store_true",
+        default=True,
+        help="Private repo (default: True)",
+    )
     p.add_argument("--public", action="store_true", help="Make repo public")
     p.add_argument("--license", default="mit", help="License template (default: mit)")
-    p.add_argument("--gitignore", default="", help="Gitignore template (e.g. Python, Node)")
-    p.add_argument("--default-branch", default="main", help="Default branch (default: main)")
-    p.add_argument("--required-reviewers", type=int, default=1, help="Required PR reviewers (default: 1)")
+    p.add_argument(
+        "--gitignore", default="", help="Gitignore template (e.g. Python, Node)"
+    )
+    p.add_argument(
+        "--default-branch", default="main", help="Default branch (default: main)"
+    )
+    p.add_argument(
+        "--required-reviewers",
+        type=int,
+        default=1,
+        help="Required PR reviewers (default: 1)",
+    )
     p.add_argument(
         "--enforce-admins",
         dest="enforce_admins",
@@ -281,9 +295,17 @@ def parse_args() -> argparse.Namespace:
         default=["check-commits"],
         help="Required status checks (default: check-commits for conventional commits)",
     )
-    p.add_argument("--skip-conventional-commits", action="store_true", help="Skip conventional commits workflow")
-    p.add_argument("--skip-branch-naming", action="store_true", help="Skip branch naming ruleset")
-    p.add_argument("--token", default=None, help="GitHub token (or set GITHUB_TOKEN env var)")
+    p.add_argument(
+        "--skip-conventional-commits",
+        action="store_true",
+        help="Skip conventional commits workflow",
+    )
+    p.add_argument(
+        "--skip-branch-naming", action="store_true", help="Skip branch naming ruleset"
+    )
+    p.add_argument(
+        "--token", default=None, help="GitHub token (or set GITHUB_TOKEN env var)"
+    )
 
     args = p.parse_args()
     if args.public:
@@ -351,7 +373,9 @@ def main():
 
     print(f"\n🎉 Done! Repo ready at: {repo['html_url']}")
     print("\nConfigured rules:")
-    print(f"  • Branch protection on '{args.default_branch}' ({args.required_reviewers} reviewer(s))")
+    print(
+        f"  • Branch protection on '{args.default_branch}' ({args.required_reviewers} reviewer(s))"
+    )
     print(f"  • Linear history required: {args.require_linear_history}")
     if not args.skip_conventional_commits:
         print("  • Conventional commits enforced via GitHub Actions")
