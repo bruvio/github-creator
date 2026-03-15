@@ -45,8 +45,9 @@ resource "github_repository" "this" {
 
   name        = each.key
   description = each.value.description
-  visibility  = each.value.visibility
-  topics      = each.value.topics
+  visibility     = each.value.visibility
+  topics         = each.value.topics
+  default_branch = each.value.default_branch
 
   auto_init          = true
   gitignore_template = each.value.gitignore_template != "" ? each.value.gitignore_template : null
