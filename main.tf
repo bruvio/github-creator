@@ -202,7 +202,7 @@ resource "github_repository_file" "conventional_commits_workflow" {
                   echo "Non-conventional commit: $MSG ($sha)"
                   FAILED=1
                 fi
-              done < <(git log --format='%H' origin/$${github.base_ref}..$${github.event.pull_request.head.sha})
+              done < <(git log --format='%H' origin/$${{ github.base_ref }}..$${{ github.event.pull_request.head.sha }})
 
               if [ "$FAILED" -eq 1 ]; then
                 echo ""
