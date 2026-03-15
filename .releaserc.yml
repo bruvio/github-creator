@@ -2,10 +2,8 @@ plugins:
   - "@semantic-release/commit-analyzer"
   - "@semantic-release/release-notes-generator"
   - "@semantic-release/changelog"
-  -
-    - "@semantic-release/git"
-    -
-      assets:
+  - - "@semantic-release/git"
+    - assets:
         - "CHANGELOG.md"
       message: "chore(release): update CHANGELOG to version ${nextRelease.version} [skip ci]"
   - "@semantic-release/github"

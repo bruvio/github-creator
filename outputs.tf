@@ -17,6 +17,7 @@ output "branch_protection" {
     required_reviewers = cfg.required_reviewers
     linear_history     = cfg.require_linear_history
     status_checks      = cfg.required_status_checks
+    admin_bypass       = cfg.admin_bypass
   } }
 }
 

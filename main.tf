@@ -87,10 +87,13 @@ resource "github_repository_ruleset" "branch_protection" {
 
   # Repository admin role can bypass — covers owner and CI using owner's PAT
   # (GitHub Actions bot can't be a bypass actor on personal repos)
-  bypass_actors {
-    actor_id    = 5 # Repository Admin role
-    actor_type  = "RepositoryRole"
-    bypass_mode = "always"
+  dynamic "bypass_actors" {
+    for_each = each.value.admin_bypass ? [1] : []
+    content {
+      actor_id    = 5 # Repository Admin role
+      actor_type  = "RepositoryRole"
+      bypass_mode = "always"
+    }
   }
 
   rules {
@@ -202,7 +205,7 @@ resource "github_repository_file" "conventional_commits_workflow" {
                   echo "Non-conventional commit: $MSG ($sha)"
                   FAILED=1
                 fi
-              done < <(git log --format='%H' origin/$${github.base_ref}..$${github.event.pull_request.head.sha})
+              done < <(git log --format='%H' origin/$${{ github.base_ref }}..$${{ github.event.pull_request.head.sha }})
 
               if [ "$FAILED" -eq 1 ]; then
                 echo ""

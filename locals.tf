@@ -14,6 +14,7 @@ locals {
     branch_name_pattern          = "^(main|develop|feature/[a-z0-9._-]+|bugfix/[a-z0-9._-]+|hotfix/[a-z0-9._-]+|release/[0-9]+\\.[0-9]+\\.[0-9]+)$"
     enable_conventional_commits  = true
     enable_branch_naming_ruleset = true
+    admin_bypass                 = false
     topics                       = []
     actions_secrets              = {}
     actions_variables            = {}
@@ -45,6 +46,7 @@ locals {
       topics                       = ["github", "terraform", "automation", "devops"]
       required_status_checks       = []    # enable after first workflow run
       enable_branch_naming_ruleset = false # requires GitHub Enterprise Cloud (metadata ruleset)
+      admin_bypass                 = true  # allow admin to merge without approval
     }
     "fitness-tracker" = {
       description                  = "little tool for tracking running/swim/cycling data and creating workouts"
@@ -54,6 +56,7 @@ locals {
       required_status_checks       = []    # enable after first workflow run
       enable_branch_naming_ruleset = false # requires GitHub Enterprise Cloud (metadata ruleset)
       required_reviewers           = 0     # solo project — no approval needed
+      admin_bypass                 = true  # allow admin to merge without approval
     }
     "ollama-forge" = {
       description                  = "little tool for tracking running/swim/cycling data and creating workouts"
@@ -63,7 +66,7 @@ locals {
       required_status_checks       = []    # enable after first workflow run
       enable_branch_naming_ruleset = false # requires GitHub Enterprise Cloud (metadata ruleset)
       required_reviewers           = 0     # solo project — no approval needed
-      enforce_admins               = false # allow owner to merge without approval
+      admin_bypass                 = true  # allow admin to merge without approval
     }
   }
 }
@@ -85,6 +88,7 @@ locals {
     branch_name_pattern          = lookup(repo, "branch_name_pattern", local.defaults.branch_name_pattern)
     enable_conventional_commits  = lookup(repo, "enable_conventional_commits", local.defaults.enable_conventional_commits)
     enable_branch_naming_ruleset = lookup(repo, "enable_branch_naming_ruleset", local.defaults.enable_branch_naming_ruleset)
+    admin_bypass                 = lookup(repo, "admin_bypass", local.defaults.admin_bypass)
     topics                       = lookup(repo, "topics", local.defaults.topics)
     actions_secrets              = merge(local.shared_secrets, local.defaults.actions_secrets, lookup(repo, "actions_secrets", {}))
     actions_variables            = merge(local.shared_variables, local.defaults.actions_variables, lookup(repo, "actions_variables", {}))
