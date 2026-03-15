@@ -3,6 +3,10 @@ name: Conventional Commits Check
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
+  push:
+    branches-ignore:
+      - master
+      - main
 
 permissions:
   pull-requests: read
@@ -17,12 +21,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine commit range
+        id: range
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # PR: compare base branch to PR head
+            echo "base=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            # Push: find merge-base with the default branch
+            git fetch origin master --quiet 2>/dev/null || git fetch origin main --quiet 2>/dev/null || true
+            DEFAULT_BRANCH=$(git remote show origin | sed -n 's/.*HEAD branch: //p')
+            BASE=$(git merge-base "origin/${DEFAULT_BRANCH}" HEAD 2>/dev/null || echo "")
+            if [ -z "$BASE" ]; then
+              echo "Could not determine merge-base, checking last commit only"
+              BASE="HEAD~1"
+            fi
+            echo "base=$BASE" >> "$GITHUB_OUTPUT"
+            echo "head=HEAD" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check commit messages
         shell: bash
         run: |
           PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:\s.+'
           FAILED=0
           while IFS= read -r sha; do
+            [ -z "$sha" ] && continue
             # Skip merge commits
             if [ "$(git rev-list --parents -n1 "$sha" | wc -w)" -gt 2 ]; then
               continue
@@ -32,7 +58,7 @@ jobs:
               echo "Non-conventional commit: $MSG ($sha)"
               FAILED=1
             fi
-          done < <(git log --format='%H' origin/${{ github.base_ref }}..${{ github.event.pull_request.head.sha }})
+          done < <(git log --format='%H' ${{ steps.range.outputs.base }}..${{ steps.range.outputs.head }})
 
           if [ "$FAILED" -eq 1 ]; then
             echo ""
