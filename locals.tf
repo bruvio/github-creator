@@ -21,6 +21,17 @@ locals {
   }
 
   # ---------------------------------------------------------------------------
+  # Shared secrets / variables applied to every repo
+  # ---------------------------------------------------------------------------
+  shared_secrets = {
+    "GH_TOKEN" = var.github_token
+  }
+
+  shared_variables = {
+    "ENVIRONMENT" = "testing"
+  }
+
+  # ---------------------------------------------------------------------------
   # Repositories — add your repos here, only specify fields to override
   # ---------------------------------------------------------------------------
   repositories = {
@@ -33,6 +44,16 @@ locals {
       enable_branch_naming_ruleset = false  # requires GitHub Enterprise Cloud (metadata ruleset)
     }
     "fitness-tracker" = {
+      description                  = "little tool for tracking running/swim/cycling data and creating workouts"
+      visibility                   = "public"
+      default_branch               = "master"
+      topics                       = ["github", "terraform", "automation", "devops", "sport"]
+      required_status_checks       = []    # enable after first workflow run
+      enable_branch_naming_ruleset = false  # requires GitHub Enterprise Cloud (metadata ruleset)
+      required_reviewers           = 0     # solo project — no approval needed
+      enforce_admins               = false # allow owner to merge without approval
+    }
+      "ollama-forge" = {
       description                  = "little tool for tracking running/swim/cycling data and creating workouts"
       visibility                   = "public"
       default_branch               = "master"
@@ -64,8 +85,8 @@ locals {
     enable_conventional_commits  = lookup(repo, "enable_conventional_commits", local.defaults.enable_conventional_commits)
     enable_branch_naming_ruleset = lookup(repo, "enable_branch_naming_ruleset", local.defaults.enable_branch_naming_ruleset)
     topics                       = lookup(repo, "topics", local.defaults.topics)
-    actions_secrets              = merge(local.defaults.actions_secrets, lookup(repo, "actions_secrets", {}))
-    actions_variables            = merge(local.defaults.actions_variables, lookup(repo, "actions_variables", {}))
+    actions_secrets              = merge(local.shared_secrets, local.defaults.actions_secrets, lookup(repo, "actions_secrets", {}))
+    actions_variables            = merge(local.shared_variables, local.defaults.actions_variables, lookup(repo, "actions_variables", {}))
   } }
 
   # Flatten secrets: { "repo-name/SECRET_NAME" => { repo, key, value } }
