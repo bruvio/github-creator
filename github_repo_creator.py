@@ -350,11 +350,11 @@ def main():
         print("✅ Branch naming ruleset created")
 
     print(f"\n🎉 Done! Repo ready at: {repo['html_url']}")
-    print(f"\nConfigured rules:")
+    print("\nConfigured rules:")
     print(f"  • Branch protection on '{args.default_branch}' ({args.required_reviewers} reviewer(s))")
     print(f"  • Linear history required: {args.require_linear_history}")
     if not args.skip_conventional_commits:
-        print(f"  • Conventional commits enforced via GitHub Actions")
+        print("  • Conventional commits enforced via GitHub Actions")
     if not args.skip_branch_naming:
         print(f"  • Branch naming regex: {args.branch_pattern}")
 
