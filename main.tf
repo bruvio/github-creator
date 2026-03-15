@@ -30,21 +30,13 @@ provider "github" {
 }
 
 # ---------------------------------------------------------------------------
-# GitHub Actions bot — used to bypass branch protection for CI pushes
-# (e.g. semantic-release tagging the default branch)
-# ---------------------------------------------------------------------------
-data "github_app" "github_actions" {
-  slug = "github-actions"
-}
-
-# ---------------------------------------------------------------------------
 # Repositories
 # ---------------------------------------------------------------------------
 resource "github_repository" "this" {
   for_each = local.repos
 
-  name        = each.key
-  description = each.value.description
+  name           = each.key
+  description    = each.value.description
   visibility     = each.value.visibility
   topics         = each.value.topics
   default_branch = each.value.default_branch
@@ -76,40 +68,63 @@ resource "github_repository" "this" {
 }
 
 # ---------------------------------------------------------------------------
-# Branch Protection
+# Branch Protection (Rulesets API — supports bypass actors on personal repos)
 # ---------------------------------------------------------------------------
-resource "github_branch_protection" "default" {
+resource "github_repository_ruleset" "branch_protection" {
   for_each = local.repos
 
-  repository_id = github_repository.this[each.key].node_id
-  pattern       = each.value.default_branch
+  name        = "branch-protection"
+  repository  = github_repository.this[each.key].name
+  target      = "branch"
+  enforcement = "active"
 
-  enforce_admins          = each.value.enforce_admins
-  require_signed_commits  = false
-  required_linear_history = each.value.require_linear_history
-  allows_deletions        = false
-  allows_force_pushes     = false
-
-  required_pull_request_reviews {
-    required_approving_review_count = each.value.required_reviewers
-    dismiss_stale_reviews           = each.value.dismiss_stale_reviews
-    restrict_dismissals             = false
-    pull_request_bypassers          = each.value.pull_request_bypassers
-  }
-
-  # Note: Status checks only work once the workflow has run at least once.
-  dynamic "required_status_checks" {
-    for_each = length(each.value.required_status_checks) > 0 ? [1] : []
-    content {
-      strict   = true
-      contexts = each.value.required_status_checks
+  conditions {
+    ref_name {
+      include = ["refs/heads/${each.value.default_branch}"]
+      exclude = []
     }
   }
 
-  # Workflow file must be committed before branch protection blocks direct pushes.
-  # On first apply this ensures correct ordering. If branch protection already
-  # exists you may need to: terraform destroy -target=github_branch_protection.default
-  # then re-apply so the file is created first.
+  # Repository admin role can bypass — covers owner and CI using owner's PAT
+  # (GitHub Actions bot can't be a bypass actor on personal repos)
+  bypass_actors {
+    actor_id    = 5 # Repository Admin role
+    actor_type  = "RepositoryRole"
+    bypass_mode = "always"
+  }
+
+  rules {
+    # Require PRs with configurable reviewer count
+    pull_request {
+      required_approving_review_count   = each.value.required_reviewers
+      dismiss_stale_reviews_on_push     = each.value.dismiss_stale_reviews
+      require_last_push_approval        = false
+      required_review_thread_resolution = false
+    }
+
+    # Enforce linear history (no merge commits)
+    required_linear_history = each.value.require_linear_history
+
+    # Block deletions and force pushes
+    deletion         = true
+    non_fast_forward = true
+
+    # Status checks — only when configured
+    dynamic "required_status_checks" {
+      for_each = length(each.value.required_status_checks) > 0 ? [1] : []
+      content {
+        dynamic "required_check" {
+          for_each = each.value.required_status_checks
+          content {
+            context = required_check.value
+          }
+        }
+        strict_required_status_checks_policy = true
+      }
+    }
+  }
+
+  # Workflow file must be committed before rulesets block direct pushes.
   depends_on = [github_repository_file.conventional_commits_workflow]
 }
 
@@ -173,18 +188,23 @@ resource "github_repository_file" "conventional_commits_workflow" {
               fetch-depth: 0
 
           - name: Check commit messages
+            shell: bash
             run: |
               PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?:\s.+'
               FAILED=0
               while IFS= read -r sha; do
-                MSG=$$(git log --format='%s' -n1 "$$sha")
-                if ! echo "$$MSG" | grep -qE "$$PATTERN"; then
-                  echo "Non-conventional commit: $$MSG ($$sha)"
+                # Skip merge commits
+                if [ "$(git rev-list --parents -n1 "$sha" | wc -w)" -gt 2 ]; then
+                  continue
+                fi
+                MSG=$(git log --format='%s' -n1 "$sha")
+                if ! echo "$MSG" | grep -qE "$PATTERN"; then
+                  echo "Non-conventional commit: $MSG ($sha)"
                   FAILED=1
                 fi
-              done < <(git log --format='%H' origin/$${{ github.base_ref }}..$${{ github.event.pull_request.head.sha }})
+              done < <(git log --format='%H' origin/$${github.base_ref}..$${github.event.pull_request.head.sha})
 
-              if [ "$$FAILED" -eq 1 ]; then
+              if [ "$FAILED" -eq 1 ]; then
                 echo ""
                 echo "Commits must follow Conventional Commits: https://www.conventionalcommits.org"
                 echo "Format: <type>(<optional scope>): <description>"

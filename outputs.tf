@@ -11,12 +11,11 @@ output "repositories" {
 }
 
 output "branch_protection" {
-  description = "Branch protection summary per repo"
+  description = "Branch protection ruleset summary per repo"
   value = { for name, cfg in local.repos : name => {
     branch             = cfg.default_branch
     required_reviewers = cfg.required_reviewers
     linear_history     = cfg.require_linear_history
-    enforce_admins     = cfg.enforce_admins
     status_checks      = cfg.required_status_checks
   } }
 }
