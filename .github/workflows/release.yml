@@ -1,0 +1,79 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Linting & Validation
+  # ──────────────────────────────────────────────
+  terraform-fmt:
+    name: Terraform Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Format Check
+        run: terraform fmt -check -recursive
+
+  ruff:
+    name: Python Lint & Format (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ruff
+        run: pip install ruff
+      - name: Lint
+        run: ruff check .
+      - name: Format Check
+        run: ruff format --check .
+
+  # ──────────────────────────────────────────────
+  # Semantic Release (merge to master only)
+  # ──────────────────────────────────────────────
+  release:
+    name: Semantic Release
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/master' &&
+      !contains(github.event.head_commit.message, '[skip ci]')
+    needs: [terraform-fmt, ruff]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      release_tag: ${{ steps.capture_tag.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for semantic-release
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Semantic Release
+        run: |
+          npm install -g \
+            semantic-release@21 \
+            @semantic-release/changelog \
+            @semantic-release/git
+
+      - name: Run Semantic Release
+        run: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Capture Tag
+        id: capture_tag
+        run: |
+          RELEASE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
