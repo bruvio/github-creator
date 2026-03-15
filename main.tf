@@ -30,6 +30,14 @@ provider "github" {
 }
 
 # ---------------------------------------------------------------------------
+# GitHub Actions bot — used to bypass branch protection for CI pushes
+# (e.g. semantic-release tagging the default branch)
+# ---------------------------------------------------------------------------
+data "github_app" "github_actions" {
+  slug = "github-actions"
+}
+
+# ---------------------------------------------------------------------------
 # Repositories
 # ---------------------------------------------------------------------------
 resource "github_repository" "this" {
@@ -85,6 +93,7 @@ resource "github_branch_protection" "default" {
     required_approving_review_count = each.value.required_reviewers
     dismiss_stale_reviews           = each.value.dismiss_stale_reviews
     restrict_dismissals             = false
+    pull_request_bypassers          = each.value.pull_request_bypassers
   }
 
   # Note: Status checks only work once the workflow has run at least once.
