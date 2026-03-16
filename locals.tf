@@ -59,10 +59,20 @@ locals {
       admin_bypass                 = true  # allow admin to merge without approval
     }
     "ollama-forge" = {
-      description                  = "little tool for tracking running/swim/cycling data and creating workouts"
+      description                  = "little tool to build an ai assistant based on ollama with rag and finetuning option on AWS"
       visibility                   = "public"
       default_branch               = "master"
       topics                       = ["github", "terraform", "automation", "devops", "sport"]
+      required_status_checks       = []    # enable after first workflow run
+      enable_branch_naming_ruleset = false # requires GitHub Enterprise Cloud (metadata ruleset)
+      required_reviewers           = 0     # solo project — no approval needed
+      admin_bypass                 = true  # allow admin to merge without approval
+    }
+    "trip-planner" = {
+      description                  = "little tool for planning car trips"
+      visibility                   = "public"
+      default_branch               = "master"
+      topics                       = ["github", "terraform", "automation", "devops", "sport","travelling"]
       required_status_checks       = []    # enable after first workflow run
       enable_branch_naming_ruleset = false # requires GitHub Enterprise Cloud (metadata ruleset)
       required_reviewers           = 0     # solo project — no approval needed

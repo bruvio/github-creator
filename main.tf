@@ -35,11 +35,10 @@ provider "github" {
 resource "github_repository" "this" {
   for_each = local.repos
 
-  name           = each.key
-  description    = each.value.description
-  visibility     = each.value.visibility
-  topics         = each.value.topics
-  default_branch = each.value.default_branch
+  name        = each.key
+  description = each.value.description
+  visibility  = each.value.visibility
+  topics      = each.value.topics
 
   auto_init          = true
   gitignore_template = each.value.gitignore_template != "" ? each.value.gitignore_template : null
@@ -65,6 +64,17 @@ resource "github_repository" "this" {
   lifecycle {
     prevent_destroy = false
   }
+}
+
+# ---------------------------------------------------------------------------
+# Default Branch — rename from 'main' to the configured default after creation
+# ---------------------------------------------------------------------------
+resource "github_branch_default" "this" {
+  for_each = { for k, v in local.repos : k => v if v.default_branch != "main" }
+
+  repository = github_repository.this[each.key].name
+  branch     = each.value.default_branch
+  rename     = true
 }
 
 # ---------------------------------------------------------------------------
@@ -169,6 +179,8 @@ resource "github_repository_file" "conventional_commits_workflow" {
   file                = ".github/workflows/conventional-commits.yml"
   commit_message      = "ci: add conventional commits validation workflow"
   overwrite_on_create = true
+
+  depends_on = [github_branch_default.this]
 
   content = <<-YAML
     name: Conventional Commits Check
