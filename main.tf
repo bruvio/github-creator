@@ -35,11 +35,10 @@ provider "github" {
 resource "github_repository" "this" {
   for_each = local.repos
 
-  name           = each.key
-  description    = each.value.description
-  visibility     = each.value.visibility
-  topics         = each.value.topics
-  default_branch = each.value.default_branch
+  name        = each.key
+  description = each.value.description
+  visibility  = each.value.visibility
+  topics      = each.value.topics
 
   auto_init          = true
   gitignore_template = each.value.gitignore_template != "" ? each.value.gitignore_template : null
@@ -65,6 +64,17 @@ resource "github_repository" "this" {
   lifecycle {
     prevent_destroy = false
   }
+}
+
+# ---------------------------------------------------------------------------
+# Default Branch — rename from 'main' to the configured default after creation
+# ---------------------------------------------------------------------------
+resource "github_branch_default" "this" {
+  for_each = { for k, v in local.repos : k => v if v.default_branch != "main" }
+
+  repository = github_repository.this[each.key].name
+  branch     = each.value.default_branch
+  rename     = true
 }
 
 # ---------------------------------------------------------------------------
@@ -170,6 +180,8 @@ resource "github_repository_file" "conventional_commits_workflow" {
   commit_message      = "ci: add conventional commits validation workflow"
   overwrite_on_create = true
 
+  depends_on = [github_branch_default.this]
+
   content = <<-YAML
     name: Conventional Commits Check
 
@@ -216,6 +228,77 @@ resource "github_repository_file" "conventional_commits_workflow" {
               fi
               echo "All commits follow Conventional Commits"
   YAML
+}
+
+# ---------------------------------------------------------------------------
+# Issue & PR Templates
+# ---------------------------------------------------------------------------
+resource "github_repository_file" "pull_request_template" {
+  for_each = local.repos
+
+  repository          = github_repository.this[each.key].name
+  branch              = each.value.default_branch
+  file                = ".github/PULL_REQUEST_TEMPLATE.md"
+  commit_message      = "docs: add pull request template"
+  overwrite_on_create = true
+
+  depends_on = [github_branch_default.this]
+
+  content = file("${path.module}/.github/PULL_REQUEST_TEMPLATE.md")
+}
+
+resource "github_repository_file" "issue_template_bug_report" {
+  for_each = local.repos
+
+  repository          = github_repository.this[each.key].name
+  branch              = each.value.default_branch
+  file                = ".github/ISSUE_TEMPLATE/bug_report.md"
+  commit_message      = "docs: add bug report issue template"
+  overwrite_on_create = true
+
+  depends_on = [github_branch_default.this]
+
+  content = file("${path.module}/.github/ISSUE_TEMPLATE/bug_report.md")
+}
+
+resource "github_repository_file" "issue_template_feature_request" {
+  for_each = local.repos
+
+  repository          = github_repository.this[each.key].name
+  branch              = each.value.default_branch
+  file                = ".github/ISSUE_TEMPLATE/feature_request.md"
+  commit_message      = "docs: add feature request issue template"
+  overwrite_on_create = true
+
+  depends_on = [github_branch_default.this]
+
+  content = file("${path.module}/.github/ISSUE_TEMPLATE/feature_request.md")
+}
+
+resource "github_repository_file" "issue_template_config" {
+  for_each = local.repos
+
+  repository          = github_repository.this[each.key].name
+  branch              = each.value.default_branch
+  file                = ".github/ISSUE_TEMPLATE/config.yml"
+  commit_message      = "docs: add issue template config"
+  overwrite_on_create = true
+
+  depends_on = [github_branch_default.this]
+
+  content = file("${path.module}/.github/ISSUE_TEMPLATE/config.yml")
+}
+
+# ---------------------------------------------------------------------------
+# Labels
+# ---------------------------------------------------------------------------
+resource "github_issue_label" "this" {
+  for_each = local.repo_labels
+
+  repository  = github_repository.this[each.value.repo].name
+  name        = each.value.name
+  color       = each.value.color
+  description = each.value.description
 }
 
 # ---------------------------------------------------------------------------
