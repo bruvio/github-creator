@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/bruvio/github-creator/compare/1.0.1...1.1.0) (2026-03-16)
+
+
+### Features
+
+* adding templates and labels ([8dbec17](https://github.com/bruvio/github-creator/commit/8dbec17e346a59fe62aaebff13cd617e89fe7808))
+
 ## [1.0.1](https://github.com/bruvio/github-creator/compare/1.0.0...1.0.1) (2026-03-15)
 
 
