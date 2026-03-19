@@ -102,7 +102,7 @@ locals {
     }
     "fitness-tracker" = {
       description                  = "little tool for tracking running/swim/cycling data and creating workouts"
-      visibility                   = "public"
+      # visibility                   = "public"
       default_branch               = "master"
       topics                       = ["github", "terraform", "automation", "devops", "sport"]
       required_status_checks       = []    # enable after first workflow run
@@ -112,7 +112,7 @@ locals {
     }
     "ollama-forge" = {
       description                  = "little tool to build an ai assistant based on ollama with rag and finetuning option on AWS"
-      visibility                   = "public"
+      # visibility                   = "public"
       default_branch               = "master"
       topics                       = ["github", "terraform", "automation", "devops", "sport"]
       required_status_checks       = []    # enable after first workflow run
